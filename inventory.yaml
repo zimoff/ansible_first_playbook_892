@@ -1,0 +1,8 @@
+box_hosts:
+  hosts:
+    ubuntu_1:
+      ansible_host: 192.168.56.3
+    ubuntu_2:
+      ansible_host: 192.168.56.4
+    ubuntu_3:
+      ansible_host: 192.168.56.5

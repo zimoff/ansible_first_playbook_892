@@ -1,0 +1,80 @@
+- name: vbox_play
+  #hosts: box_hosts
+  hosts: ubuntu_1 
+  vars:
+    ansible_user: zimoff_1
+    my_var: test_var 
+  vars_files:
+    - ./my_vars
+  tasks:
+    - name: "check hosts"
+      ansible.builtin.ping:
+      register: ping_var
+      tags: "ping_hosts"
+
+    - name: "add sudoers"
+      become: yes
+      ansible.builtin.template:
+        src: ./templates/my_sudoers.j2
+        dest: /etc/sudoers.d/my_sudoers
+
+    - name: "add user"
+      become: yes
+      ansible.builtin.user:
+        name: "{{ user_1 }}"
+        shell: "/bin/bash"
+        password: "$6$ALOucCrpvmYtft0B$iuNjBbao1.MloJ1t16isl7l1tF6sFgyzAIFR2NUnfxgeEJ1DeQG29g67nMMUvR5/vdC1iL2U7MjLcU6gOyV1H0"
+
+    - name: "debug check"
+      ansible.builtin.debug:
+        #msg: "hello123 name: {{ ansible_facts.hostname }}"
+        msg: "end of first playbook user_1: {{ user_1 }}"
+      tags: "debug_1"
+
+
+- name: apt_up 
+  #hosts: box_hosts
+  hosts: ubuntu_1 
+  vars_files:
+    - ./my_vars
+  vars:
+    ansible_user: "{{ user_1 }}" 
+  tasks:
+    - name: "apt update"
+      become: yes
+      #ansible.builtin.command:
+        #cmd: "sudo apt update"
+      ansible.builtin.apt:
+        update_cache: yes
+      register: apt_res
+      tags: "apt_up"
+
+    - name: "debug check"
+      ansible.builtin.debug:
+        #msg: "hello123 name: {{ ansible_facts.hostname }}"
+        msg: "end of first playbook user_1: {{ ansible_user }}"
+        #var: apt_res
+      tags: "debug_2"
+
+
+
+    #- name: "debug check"
+      #ansible.builtin.debug:
+        ##msg: "hello123 name: {{ ansible_facts.hostname }}"
+        #msg: "hello123 name: {{ ping_var.changed }}"
+      #tags: "debug"
+        #var: ansible_facts.hostname
+
+#- name: vbox_gcc
+  #hosts: ubuntu_1 
+  #vars:
+    #ansible_user: zimoff_1
+  #tasks:
+    #- name: "install gcc"
+      #become: yes
+      #ansible.builtin.package:
+        #name: "gcc"
+        #state: present
+      #delegate_to: ubuntu_1
+
+
