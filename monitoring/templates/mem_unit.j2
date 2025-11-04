@@ -1,0 +1,14 @@
+[Unit]
+Description=scrap mem data script
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/{{ ansible_user }}/scripts/mem_script.sh
+WorkingDirectory=/home/{{ ansible_user }}/scripts
+Restart=always
+User={{ ansible_user }} 
+
+[Install]
+WantedBy=multi-user.target
+

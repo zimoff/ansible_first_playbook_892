@@ -38,12 +38,7 @@
             dest: ~/pushgateway
             remote_src: yes
           tags: "pushgateway"
-
-        - name: "pushgateway" 
-
-
       tags: "get_pushgateway"
-
 
     - name: "prometheus install"
       block:
@@ -61,6 +56,29 @@
           tags: "prometheus"
       tags: "get_prometheus"
 
+    - name: "run pushgateway"
+      block:
+      - name: "add unit"
+        become: yes
+        ansible.builtin.template:
+          src: ./templates/pushgateway_unit.j2
+          dest: /etc/systemd/system/pushgateway.service
+        tags: "add_unit_g"
+
+      - name: "add pushgateway host to prometheus config"
+        ansible.builtin.shell: 
+          chdir: ~/prometheus/prometheus-2.9.2.linux-amd64 
+          cmd: "echo \"    - targets: ['localhost:9091']\" | tee -a prometheus.yml"
+        tags: "add_str"
+
+      - name: "run unit"
+        become: yes
+        ansible.builtin.systemd_service:
+          name: pushgateway
+          state: started
+        tags: "run_unit_g"
+      tags: "run_pushgateway"
+
     - name: "run prometheus"
       block:
       - name: "add unit"
@@ -68,15 +86,91 @@
         ansible.builtin.template:
           src: ./templates/prometheus_unit.j2
           dest: /etc/systemd/system/prometheus.service
-        tags: "add_unit"
+        tags: "add_unit_p"
 
       - name: "run unit"
         become: yes
         ansible.builtin.systemd_service:
           name: prometheus
           state: started
-        tags: "run_unit"
+        tags: "run_unit_p"
       tags: "run_prometheus"
+
+
+    - name: "run scripts for pushgateway"
+      block:
+      - name: "make dir for scripts"
+        ansible.builtin.file:
+          path: ~/scripts
+          state: directory
+        tags: "make_dir_s"
+
+      - name: "copy scripts"
+        ansible.builtin.copy:
+          src: "./{{ item }}" 
+          dest: ~/scripts/{{ item }}
+          mode: +x
+        loop:
+          - mem_script.sh
+          - cpu_script.sh
+        tags: "copy_s"
+
+      - name: "add script to systemd"
+        become: yes
+        ansible.builtin.template:
+          src: ./templates/{{ item }}.j2
+          dest: /etc/systemd/system/{{ item }}.service
+        loop:
+          - cpu_unit
+          - mem_unit
+        tags: "add_unit_s"
+
+      - name: "run unit"
+        become: yes
+        ansible.builtin.systemd_service:
+          name: "{{ item }}"
+          state: started
+        loop:
+          - cpu_unit
+          - mem_unit
+        tags: "run_unit_s"
+      tags: "run_scripts"
+
+
+    - name: "install grafana"
+      become: yes
+      block:
+      - name: "grafana install depends"
+        #become: yes
+        ansible.builtin.apt:
+          name: "{{ item }}"
+          state: present
+        loop: [ "adduser", "libfontconfig1", "musl" ]
+        register: apt_res
+        tags: "grafana_dep"
+
+      - name: "install deb"
+        #become: yes
+        ansible.builtin.apt:
+          deb: https://dl.grafana.com/grafana/release/12.2.1/grafana_12.2.1_18655849634_linux_amd64.deb
+        tags: "inst_deb"
+
+      #- name: "add docker key"
+        #become: yes
+        #ansible.builtin.get_url:
+          #url: https://download.docker.com/linux/ubuntu/gpg
+          #dest: /etc/apt/keyrings/docker.asc
+        #tags: "add_docker_key"
+
+
+      #- name: "add docker repo"
+        #become: yes
+        #ansible.builtin.apt_repository:
+          #repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+          #state: present
+        #tags: "add_repo_key"
+
+      tags: "grafana_inst"
 
 
     #- name: "start prometheus"

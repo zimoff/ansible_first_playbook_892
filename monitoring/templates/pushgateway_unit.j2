@@ -1,0 +1,14 @@
+[Unit]
+Description=pushgateway for prometheus
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/{{ ansible_user }}/pushgateway/pushgateway-0.8.0.linux-amd64/pushgateway
+WorkingDirectory=/home/{{ ansible_user }}/pushgateway/pushgateway-0.8.0.linux-amd64
+Restart=always
+User={{ ansible_user }} 
+
+[Install]
+WantedBy=multi-user.target
+
