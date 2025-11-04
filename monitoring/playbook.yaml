@@ -5,161 +5,85 @@
     ansible_user: zimoff_1
     my_var: test_var 
   vars_files:
-    - ./my_vars.yaml
-    - ./secrets.yaml
+    - ./monitoring_vars.yaml
+    - ../secrets.yaml
   tasks:
     - name: "check hosts"
       ansible.builtin.ping:
       register: ping_var
       tags: "ping_hosts"
 
-    #- name: "add sudoers"
+    - name: "run nginx"
       #become: yes
-      #ansible.builtin.template:
-        #src: ./templates/my_sudoers.j2
-        #dest: /etc/sudoers.d/my_sudoers
-
-    - name: "add user"
-      become: yes
-      ansible.builtin.user:
-        name: "{{ user_1 }}"
-        shell: "/bin/bash"
-        password: "{{ user_1_pass | password_hash('sha512', 'somesalt') }}"
-        
-
-      #ansible.builtin.command:
-        #cmd: "sudo apt update"
-    - name: "apt remove"
-      become: yes
-      ansible.builtin.apt:
-        name: "{{ item }}"
-        state: absent 
-      loop: [ "docker.io", "docker-doc", "docker-compose", "docker-compose-v2", "podman-docker", "containerd", "runc" ]
-      register: apt_remove
-      tags: "apt_remove"
+      community.docker.docker_container:
+        name: my_ng 
+        image: nginx 
+        state: started 
+        ports:
+          - 8888:80
+      tags: "run_nginx"
 
 
-      #ansible.builtin.command:
-        #cmd: "sudo apt update"
-    - name: "apt update preinstall"
-      become: yes
-      ansible.builtin.apt:
-        name: "{{ item }}"
-        state: present
-        #update_cache: yes
-      loop: [ "ca-certificates", "curl", "gcc" ]
-      register: apt_res
-      tags: "apt_preinstall"
+    - name: "pushgateway install"
+      block:
+        - name: "make dir for pushgateway" 
+          ansible.builtin.file:
+            path: ~/pushgateway
+            state: directory
+          tags: "make_dir_gate"
+
+        - name: "pushgateway" 
+          ansible.builtin.unarchive:
+            src: "https://github.com/prometheus/pushgateway/releases/download/v0.8.0/pushgateway-0.8.0.linux-amd64.tar.gz"
+            dest: ~/pushgateway
+            remote_src: yes
+          tags: "pushgateway"
+
+        - name: "pushgateway" 
 
 
+      tags: "get_pushgateway"
 
-    #- name: "install repo" 
+
+    - name: "prometheus install"
+      block:
+        - name: "make dir for prometheus" 
+          ansible.builtin.file:
+            path: ~/prometheus
+            state: directory
+          tags: "make_dir"
+
+        - name: "get prometheus" 
+          ansible.builtin.unarchive:
+            src: "https://github.com/prometheus/prometheus/releases/download/v2.9.2/prometheus-2.9.2.linux-amd64.tar.gz"
+            dest: ~/prometheus
+            remote_src: yes
+          tags: "prometheus"
+      tags: "get_prometheus"
+
+    - name: "run prometheus"
+      block:
+      - name: "add unit"
+        become: yes
+        ansible.builtin.template:
+          src: ./templates/prometheus_unit.j2
+          dest: /etc/systemd/system/prometheus.service
+        tags: "add_unit"
+
+      - name: "run unit"
+        become: yes
+        ansible.builtin.systemd_service:
+          name: prometheus
+          state: started
+        tags: "run_unit"
+      tags: "run_prometheus"
+
+
+    #- name: "start prometheus"
       #become: yes
-      #block:
-    - name: "add docker key"
-      become: yes
-      ansible.builtin.get_url:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        dest: /etc/apt/keyrings/docker.asc
-      tags: "add_docker_key"
-
-
-    - name: "add docker repo"
-      become: yes
-      ansible.builtin.apt_repository:
-        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-        state: present
-      tags: "add_repo_key"
-
-
-      
-
-    #- name: "add apt key"
-      #become: yes
-      ##ansible.builtin.command:
-        ##cmd: "sudo apt update"
-      #ansible.builtin.apt_key:
-        #url: "https://download.docker.com/linux/ubuntu/gpg"
-        #state: present
-      #tags: "add_apt_key"
-
-    #- name: "add repo"
-      #become: yes
-      ##ansible.builtin.command:
-        ##cmd: "sudo apt update"
-      #ansible.builtin.apt_repository:
-        #repo: "deb https://download.docker.com/linux/ubuntu   noble stable"
-        ##repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu   noble stable"
-        #state: present
-      #tags: "add_repo"
-
-    - name: "apt docker"
-      become: yes
-      ansible.builtin.apt:
-        name: "{{ item }}"
-        state: present
-        update_cache: yes
-      loop: [ "docker-ce", "docker-ce-cli", "containerd.io", "docker-buildx-plugin", "docker-compose-plugin"]
-      register: apt_docker
-      ignore_errors: true
-      tags: "apt_docker"
-
-    - name: "debug fail check"
-      #ansible.builtin.fail:
-      ansible.builtin.debug:
-        msg: "{{ item.item}}: {{ item.stderr }}"
-        #var: item.stderr
-      #when: item.failed == true 
-      when: item.failed | default(false)
-      loop: "{{ apt_docker.results }}"
-      loop_control:
-        label: "{{ item.item }}"
-      tags: "debug_on_fail"
-
-    - name: "debug check"
-      ansible.builtin.debug:
-        #msg: "end of first playbook user_1: {{ user_1 }} user pass: {{ user_1_pass }} hash: {{ user_1_pass | password_hash('sha512', 'somesalt') }}"
-        #msg: "end of first playbook user_1: {{ user_1 }}"
-        #var: ansible_distribution_release
-        var: ansible_architecture
-      tags: "debug_1"
-
-
-#- name: apt_up 
-  ##hosts: box_hosts
-  #hosts: ubuntu_1 
-  #vars_files:
-    #- ./my_vars
-  #vars:
-    #ansible_user: "{{ user_1 }}" 
-  #tasks:
-
-    #- name: "debug check"
-      #ansible.builtin.debug:
-        ##msg: "hello123 name: {{ ansible_facts.hostname }}"
-        #msg: "end of first playbook user_1: {{ ansible_user }}"
-        ##var: apt_res
-      #tags: "debug_2"
-
-
-
-    #- name: "debug check"
-      #ansible.builtin.debug:
-        ##msg: "hello123 name: {{ ansible_facts.hostname }}"
-        #msg: "hello123 name: {{ ping_var.changed }}"
-      #tags: "debug"
-        #var: ansible_facts.hostname
-
-#- name: vbox_gcc
-  #hosts: ubuntu_1 
-  #vars:
-    #ansible_user: zimoff_1
-  #tasks:
-    #- name: "install gcc"
-      #become: yes
-      #ansible.builtin.package:
-        #name: "gcc"
-        #state: present
-      #delegate_to: ubuntu_1
+      #ansible.builtin.shell: 
+        #chdir: ~/prometheus/prometheus-2.9.2.linux-amd64 
+        #cmd: "nohup ./prometheus > /dev/nill 2>&1 &"
+      #tags: "start_pr"
 
 

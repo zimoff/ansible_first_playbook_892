@@ -51,8 +51,6 @@
       register: apt_res
       tags: "apt_preinstall"
 
-
-
     #- name: "install repo" 
       #become: yes
       #block:
@@ -72,7 +70,23 @@
       tags: "add_repo_key"
 
 
+    - name: "add to docker group"
+      become: yes
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+      tags: "add_group"
       
+    - name: "run nginx"
+      #become: yes
+      community.docker.docker_container:
+        name: my_ng 
+        image: nginx 
+        state: started 
+        ports:
+          - 8888:80
+      tags: "run_nginx"
 
     #- name: "add apt key"
       #become: yes

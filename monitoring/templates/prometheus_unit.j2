@@ -1,0 +1,14 @@
+[Unit]
+Description=Prometheus Monitoring
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/{{ ansible_user }}/prometheus/prometheus-2.9.2.linux-amd64/prometheus
+WorkingDirectory=/home/{{ ansible_user }}/prometheus/prometheus-2.9.2.linux-amd64 
+Restart=always
+User={{ ansible_user }} 
+
+[Install]
+WantedBy=multi-user.target
+
